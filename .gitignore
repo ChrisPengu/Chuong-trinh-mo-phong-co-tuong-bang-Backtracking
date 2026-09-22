@@ -1,0 +1,24 @@
+# Dependencies and generated output
+node_modules/
+coverage/
+.nyc_output/
+dist/
+build/
+
+# Local configuration and logs
+.env
+.env.*
+!.env.example
+*.log
+npm-debug.log*
+
+# Editor and operating-system files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+
+# Temporary downloaded assets (the selected assets/sfx/*.ogg files are kept)
+.asset-staging/
+kenney_impact-sounds.zip

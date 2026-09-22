@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Mô phỏng cờ tướng với AI backtracking, negamax và alpha-beta pruning." />
+    <title>Kỳ Thập - AI Cờ Tướng Backtracking</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Noto+Serif:wght@600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="ambient ambient-one"></div>
+    <div class="ambient ambient-two"></div>
+    <main class="app-shell">
+      <header class="topbar">
+        <a class="brand" href="#" aria-label="Kỳ Thập - về đầu trang">
+          <span class="brand-mark">將</span>
+          <span><strong>Kỳ Thập</strong><small>Backtracking Lab</small></span>
+        </a>
+        <div class="topbar-actions">
+          <button id="soundToggle" class="sound-toggle" type="button" aria-label="Tắt âm thanh" aria-pressed="true" title="Bật/tắt âm thanh">
+            <span class="sound-icon" aria-hidden="true">♪</span><span id="soundLabel">Âm thanh: Bật</span>
+          </button>
+          <div class="engine-pill"><span class="pulse"></span> AI engine sẵn sàng</div>
+        </div>
+      </header>
+
+      <section class="hero-copy">
+        <p class="eyebrow">Bài Tập Lớn Trí tuệ nhân tạo</p>
+        <h1>So tài trên <em>cửu lộ, thập hoành</em></h1>
+        <p>Chơi cờ tướng hai người hoặc thử sức với AI</p>
+      </section>
+
+      <section class="game-layout">
+        <aside class="panel control-panel" aria-label="Thiết lập ván đấu">
+          <div class="panel-heading">
+            <span class="step">01</span>
+            <div><p>Thiết lập</p><h2>Ván đấu</h2></div>
+          </div>
+
+          <fieldset class="segment-field">
+            <legend>Chế độ chơi</legend>
+            <div class="segmented" id="modeControl">
+              <button class="segment active" data-mode="pve" type="button">Đấu với máy</button>
+              <button class="segment" data-mode="pvp" type="button">Hai người</button>
+            </div>
+          </fieldset>
+
+          <label class="field" id="difficultyField">
+            <span>Độ khó AI</span>
+            <select id="difficulty">
+              <option value="easy">Dễ</option>
+              <option value="medium" selected>Vừa</option>
+              <option value="hard">Khó</option>
+              <option value="expert">Chuyên gia</option>
+            </select>
+          </label>
+
+          <fieldset class="side-picker" id="sideField">
+            <legend>Bạn cầm quân</legend>
+            <div class="side-options">
+              <button class="side-card active" data-side="red" type="button">
+                <span class="mini-piece red-piece">帥</span><span><strong>Đỏ</strong><small>Đi trước</small></span>
+              </button>
+              <button class="side-card" data-side="black" type="button">
+                <span class="mini-piece black-piece">將</span><span><strong>Đen</strong><small>Đi sau</small></span>
+              </button>
+            </div>
+          </fieldset>
+
+          <div class="scenario-picker">
+            <label for="scenarioSelect">Thế cờ kiểm thử</label>
+            <select id="scenarioSelect">
+              <option value="initial">Bàn cờ ban đầu</option>
+              <option value="red_mate_one">Đỏ thắng trong 1 nước</option>
+              <option value="black_mate_one">Đen thắng trong 1 nước</option>
+              <option value="red_won">Thế cờ: Đỏ đã thắng</option>
+              <option value="black_won">Thế cờ: Đen đã thắng</option>
+            </select>
+            <p id="scenarioDescription">Khai cuộc tiêu chuẩn, Đỏ đi trước.</p>
+            <button id="loadScenario" type="button">Nạp thế cờ</button>
+          </div>
+
+          <button class="primary-btn" id="newGame" type="button"><span>＋</span> Ván mới</button>
+          <div class="secondary-actions">
+            <button id="undoBtn" type="button" title="Hoàn tác nước đi">↶ <span>Đi lại</span></button>
+            <button id="hintBtn" type="button" title="Tìm nước tốt nhất và đường đi dự kiến">✦ <span>Phân tích</span></button>
+            <button id="flipBtn" type="button" title="Xoay bàn cờ">↕ <span>Xoay bàn</span></button>
+          </div>
+        </aside>
+
+        <section class="board-column" aria-label="Bàn cờ tướng">
+          <div class="player-strip black-strip" id="blackStrip">
+            <span class="avatar black-avatar">將</span>
+            <span><small>QUÂN ĐEN</small><strong id="blackName">Kỳ Thủ AI</strong></span>
+            <span class="turn-badge" id="blackTurn">ĐANG ĐỢI</span>
+          </div>
+
+          <div class="ai-thinking-bar" id="thinkingStatus" role="status" aria-live="polite" aria-hidden="true">
+            <span class="thinking-signal" aria-hidden="true"><i></i><i></i><i></i></span>
+            <span id="thinkingText">AI đang suy nghĩ · duyệt cây nước đi</span>
+          </div>
+
+          <div class="board-frame" id="boardFrame">
+            <canvas id="board" width="720" height="800" aria-label="Bàn cờ tướng tương tác" role="img"></canvas>
+            <div class="ceremony" id="startCeremony" hidden aria-hidden="true">
+              <span class="ceremony-sigil"></span>
+              <span class="ceremony-line"></span>
+              <span class="ceremony-kicker" id="ceremonyKicker">VÁN CỜ BẮT ĐẦU</span>
+              <strong id="ceremonyTitle">Sẵn sàng khai cuộc</strong>
+              <span class="ceremony-subtitle" id="ceremonySubtitle">Đỏ đi trước · Mỗi nước đi là một lựa chọn</span>
+              <span class="ceremony-line"></span>
+            </div>
+          </div>
+
+          <div class="player-strip red-strip" id="redStrip">
+            <span class="avatar red-avatar">帥</span>
+            <span><small>QUÂN ĐỎ</small><strong id="redName">Bạn</strong></span>
+            <span class="turn-badge" id="redTurn">LƯỢT ĐI</span>
+          </div>
+        </section>
+
+        <aside class="panel info-panel" aria-label="Thông tin ván đấu">
+          <div class="panel-heading compact">
+            <span class="step">02</span>
+            <div><p>Trạng thái</p><h2>Ván cờ</h2></div>
+          </div>
+
+          <div class="status-card" id="statusCard" aria-live="polite">
+            <span class="status-icon" id="statusIcon">帥</span>
+            <span><small id="statusLabel">LƯỢT HIỆN TẠI</small><strong id="statusText">Đỏ đi trước</strong></span>
+          </div>
+
+          <div class="ai-metrics" id="aiMetrics">
+            <div><span>Độ sâu</span><strong id="metricDepth">—</strong></div>
+            <div><span>Nút đã duyệt</span><strong id="metricNodes">—</strong></div>
+            <div><span>Thời gian</span><strong id="metricTime">—</strong></div>
+          </div>
+
+          <section class="analysis-panel" id="analysisPanel" hidden aria-live="polite">
+            <span class="analysis-kicker">PHÂN TÍCH AI</span>
+            <strong id="analysisBest">Nước tốt nhất</strong>
+            <span id="analysisScore" class="analysis-score">—</span>
+            <p>Đường đi dự kiến</p>
+            <ol id="analysisLine"></ol>
+            <small id="analysisNote">Dự đoán theo độ sâu tìm kiếm, không phải nước bắt buộc.</small>
+          </section>
+
+          <div class="move-heading"><h3>Lịch sử nước đi</h3><span id="moveCount">0 nước</span></div>
+          <ol class="move-list" id="moveList">
+            <li class="empty-moves">Chưa có nước đi nào.<br />Đỏ sẽ khai cuộc trước.</li>
+          </ol>
+
+          <details class="algorithm-note">
+            <summary>AI đang tính như thế nào?</summary>
+            <p>AI thử từng nước đi, quay lui bàn cờ, chấm điểm thế trận rồi loại bỏ các nhánh kém bằng alpha–beta. Bảng nhớ giúp không tính lại trạng thái cũ.</p>
+          </details>
+        </aside>
+      </section>
+
+      <footer>
+        <span>AI: Iterative deepening · Negamax · Alpha–beta · Transposition table</span>
+        <span>Luật cơ bản WXF · Bản mô phỏng học thuật</span>
+      </footer>
+    </main>
+
+    <div class="result-backdrop" id="resultBackdrop" hidden>
+      <section class="result-panel" role="dialog" aria-modal="true" aria-labelledby="resultTitle" aria-describedby="resultReason" tabindex="-1">
+        <button class="result-close" id="closeResult" type="button" aria-label="Đóng để xem lại bàn cờ">×</button>
+        <div class="result-ornament" aria-hidden="true"><span id="resultGlyph">帥</span></div>
+        <p class="result-kicker" id="resultKicker">VÁN ĐẤU KẾT THÚC</p>
+        <h2 id="resultTitle">Đỏ chiến thắng</h2>
+        <p class="result-reason" id="resultReason">Chiếu bí</p>
+        <div class="result-stat"><span>Đã đi</span><strong id="resultMoves">0 nước</strong></div>
+        <div class="result-actions">
+          <button class="primary-btn" id="rematchBtn" type="button">↻ Chơi ván mới</button>
+          <button class="result-review" id="reviewBtn" type="button">Xem lại bàn cờ</button>
+        </div>
+      </section>
+    </div>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script type="module" src="./src/app.js"></script>
+  </body>
+</html>
