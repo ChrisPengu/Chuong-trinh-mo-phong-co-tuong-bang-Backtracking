@@ -69,6 +69,7 @@ test("giao diện khởi chạy, chuyển chế độ, animate nước đi và b
     addEventListener() {},
   };
   globalThis.window = {
+    devicePixelRatio: 2,
     matchMedia: () => ({ matches: false }),
     setTimeout(handler) { const id = nextId++; timers.set(id, handler); return id; },
     clearTimeout(id) { timers.delete(id); },
@@ -87,6 +88,8 @@ test("giao diện khởi chạy, chuyển chế độ, animate nước đi và b
   };
 
   await import("../src/app.js");
+  assert.equal(canvas.width, 1440);
+  assert.equal(canvas.height, 1600);
   assert.equal(nodes.get("#startCeremony").hidden, false);
   assert.equal(nodes.get("#soundToggle")["aria-pressed"], "true");
   nodes.get("#soundToggle").dispatch("click");

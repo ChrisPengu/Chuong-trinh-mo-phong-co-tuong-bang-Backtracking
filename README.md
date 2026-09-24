@@ -111,6 +111,7 @@ AI trả về nước chọn, điểm lượng giá, độ sâu hoàn tất, s�
 │   ├── ai-worker.js        Nhận yêu cầu tìm kiếm ở luồng riêng
 │   ├── app.js              Trạng thái ván, Canvas, tương tác và VFX
 │   ├── sound.js            Phát SFX, trộn mẫu âm với Web Audio
+│   ├── experience.js       Màu, quỹ đạo và hiệu ứng riêng cho từng loại quân
 │   └── scenarios.js        Các thế cờ mẫu
 ├── assets/sfx/             Mẫu âm .ogg và ghi chú nguồn/giấy phép
 ├── test/                   Kiểm thử tự động
@@ -144,6 +145,14 @@ Chạy `npm.cmd test` (hoặc `npm test` trên macOS/Linux). Bộ test sử dụ
 Trong giao diện, mục **Thế cờ kiểm thử** có năm lựa chọn: bàn cờ ban đầu; Đỏ hoặc Đen thắng trong một nước; Đỏ hoặc Đen đã thắng. Đây là cách nhanh nhất để trình diễn AI và màn kết thúc mà không phải đánh hết một ván.
 
 ## Âm thanh, hiệu ứng và tài nguyên
+
+Trong mục **Trải nghiệm**, có ba mức **Tinh gọn / Cân bằng / Rực lửa** và thanh âm lượng 0–100%. Cả hai lựa chọn đều được lưu trên trình duyệt. Mặc định VFX ở mức Rực lửa, âm lượng 70%; người dùng bật giảm chuyển động trong hệ điều hành vẫn được ưu tiên.
+
+Mỗi loại quân có một bộ màu, cao độ và dấu va chạm riêng. Xe có vệt lao xanh và các đường chém cong; Pháo tạo cầu năng lượng màu hổ phách cùng sóng xung kích elip; Mã bật cao, có vệt móng và nhịp âm kép. Tướng, Sĩ, Tượng và Tốt dùng những dấu ấn hình học và lớp âm nhẹ khác nhau. Chuyển động có nhịp lấy đà, chạm và đáp; tiếng ăn quân phát ở thời điểm chạm ô đích, quân bị ăn chỉ tan đi sau lúc đó. Thông báo sự kiện nằm dưới bàn cờ.
+
+Mình bổ sung tiếng vang ngắn cho các âm ngân, phối riêng nhạc hiệu mở ván/thắng/thua và điều khiển âm lượng tổng. Nút tắt tiếng dừng cả các nguồn âm đã hẹn phát. Khi tạo ván mới hoặc hoàn tác, game hủy các nguồn âm đang chạy cùng hiệu ứng cũ. Bàn cờ được vẽ theo mật độ điểm ảnh của màn hình (tối đa 2×), giúp chữ và viền quân nét hơn trên màn hình HiDPI.
+
+Để thử nhanh hiệu ứng ăn quân và kết thúc: chọn **Hai người**, nạp **Đỏ thắng trong 1 nước**, chọn Xe Đỏ ở cột giữa rồi ăn Tốt Đen ngay phía trên. Có thể đổi mức VFX để so sánh độ dày của hạt và lớp năng lượng.
 
 Nước đi có vệt lướt và dư ảnh; ô đích xuất hiện vòng phù văn xoay trước khi quân đáp xuống. Ăn quân có thêm dải năng lượng, bụi, mảnh vỡ, tia sáng và phản ứng ở viền bàn cờ. Khi kết thúc ván, game dành một nhịp cho hiệu ứng kết thúc rồi mới mở bảng kết quả. Mở ván có vòng triệu hồi; dấu ấn trên bảng kết quả chuyển động nhẹ. Đây là hiệu ứng **lấy cảm hứng từ cảm giác arena/“Boom” của TFT**, tự vẽ bằng Canvas/CSS; dự án không dùng hình, âm thanh hay nhân vật của Riot. Game **không nháy phủ toàn màn hình** sau mỗi nước đi. Nếu hệ điều hành bật `prefers-reduced-motion`, hoạt ảnh di chuyển và các phản ứng trang trí được rút bỏ.
 

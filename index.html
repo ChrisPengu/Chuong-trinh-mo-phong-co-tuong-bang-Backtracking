@@ -89,6 +89,18 @@
             <button id="hintBtn" type="button" title="Tìm nước tốt nhất và đường đi dự kiến">✦ <span>Phân tích</span></button>
             <button id="flipBtn" type="button" title="Xoay bàn cờ">↕ <span>Xoay bàn</span></button>
           </div>
+          <section class="experience-controls" aria-label="Âm thanh và hiệu ứng">
+            <div class="experience-heading"><span>TRẢI NGHIỆM</span><span aria-hidden="true">✦</span></div>
+            <label for="fxLevel">Cường độ hiệu ứng</label>
+            <select id="fxLevel">
+              <option value="low">Tinh gọn</option>
+              <option value="medium">Cân bằng</option>
+              <option value="high" selected>Rực lửa</option>
+            </select>
+            <div class="volume-heading"><label for="soundVolume">Âm lượng</label><output id="volumeValue" for="soundVolume">70%</output></div>
+            <input id="soundVolume" type="range" min="0" max="100" step="1" value="70" aria-label="Âm lượng hiệu ứng" />
+            <p>Chọn Tinh gọn nếu muốn tập trung vào thế cờ.</p>
+          </section>
         </aside>
 
         <section class="board-column" aria-label="Bàn cờ tướng">
@@ -115,6 +127,9 @@
             </div>
           </div>
 
+          <div class="moment-banner" id="momentBanner" role="status" aria-live="polite" aria-atomic="true">
+            <strong id="momentTitle"></strong><span id="momentDetail"></span>
+          </div>
           <div class="player-strip red-strip" id="redStrip">
             <span class="avatar red-avatar">帥</span>
             <span><small>QUÂN ĐỎ</small><strong id="redName">Bạn</strong></span>

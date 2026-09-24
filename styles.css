@@ -98,6 +98,22 @@ select:focus, button:focus-visible { outline: 2px solid rgba(197,165,93,.7); out
 .secondary-actions button { border: 1px solid var(--line); background: #151716; padding: 8px 2px; border-radius: 3px; color: #aaa8a1; cursor: pointer; font-size: 13px; }
 .secondary-actions button span { display: block; margin-top: 2px; font-size: 8px; }
 .secondary-actions button:disabled { opacity: .35; cursor: not-allowed; }
+.experience-controls { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--line); }
+.experience-heading { display: flex; justify-content: space-between; align-items: center; color: #d5b777; font-size: 9px; letter-spacing: .18em; margin-bottom: 13px; }
+.experience-heading span:last-child { font-size: 18px; text-shadow: 0 0 12px rgba(218,174,95,.45); }
+.experience-controls label { display: block; font-size: 10px; color: #b7b2a7; margin-bottom: 7px; }
+.volume-heading { display: flex; align-items: center; justify-content: space-between; margin-top: 15px; }
+.volume-heading output { color: #ddc38a; font-size: 10px; font-variant-numeric: tabular-nums; }
+.experience-controls input[type="range"] { width: 100%; accent-color: #d6ad63; cursor: pointer; min-height: 24px; }
+.experience-controls input:focus-visible { outline: 2px solid #d6ad63; outline-offset: 3px; border-radius: 4px; }
+.experience-controls p { color: #979389; font-size: 9px; line-height: 1.6; margin: 7px 0 0; }
+.moment-banner { min-height: 33px; display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 6px 12px; padding: 6px 10px; opacity: 0; pointer-events: none; color: #ecc78a; }
+.moment-banner strong { font-size: 10px; letter-spacing: .17em; }
+.moment-banner span { font-size: 10px; color: #bcb5a7; }
+.moment-banner.active { animation: momentReveal 1.7s ease both; }
+.moment-banner[data-kind="check"] strong { color: #f39778; }
+.moment-banner[data-kind="victory"] strong { color: #f1d795; }
+@keyframes momentReveal { 0% { opacity: 0; transform: translateY(5px); } 16%, 78% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-3px); } }
 
 .board-column { min-width: 0; }
 .player-strip { display: flex; align-items: center; min-height: 47px; margin: 0 20px; padding: 0 8px; border-bottom: 1px solid transparent; transition: .25s ease; }
@@ -117,7 +133,7 @@ select:focus, button:focus-visible { outline: 2px solid rgba(197,165,93,.7); out
 .player-strip strong { font-size: 11px; margin-top: 2px; }
 .turn-badge { margin-left: auto; padding: 5px 8px; border-radius: 2px; color: #737670; background: rgba(255,255,255,.035); font-size: 7px; letter-spacing: .11em; }
 .active .turn-badge { color: #d6be84; background: rgba(197,165,93,.1); }
-.board-frame { position: relative; width: 100%; aspect-ratio: 0.9; padding: 11px; background: linear-gradient(145deg, #785334, #432c1d); border: 1px solid #96704d; box-shadow: 0 25px 70px rgba(0,0,0,.43), inset 0 0 0 3px rgba(31,20,13,.5), inset 0 0 25px rgba(22,12,7,.62); }
+.board-frame { position: relative; width: 100%; aspect-ratio: 0.9; padding: 11px; border-radius: 7px; background: linear-gradient(145deg, #776348, #2c261f 50%, #55432b); border: 1px solid #ab8b56; box-shadow: 0 25px 70px rgba(0,0,0,.43), inset 0 0 0 3px rgba(31,20,13,.5), inset 0 1px 1px #e4c58f, inset 0 0 25px rgba(22,12,7,.62); }
 .board-frame.board-entering { animation: boardArrival 1.25s cubic-bezier(.18,.7,.2,1) both; }
 .board-frame::before { content: ""; position: absolute; inset: 5px; pointer-events: none; border: 1px solid rgba(233,191,125,.2); }
 .board-frame::after { content: ""; position: absolute; inset: 11px; pointer-events: none; opacity: 0; border: 2px solid rgba(241,197,116,.7); box-shadow: inset 0 0 32px rgba(230,145,81,.3), 0 0 28px rgba(239,174,101,.28); }
@@ -243,4 +259,9 @@ footer { display: flex; justify-content: space-between; gap: 16px; margin-top: 4
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+  .moment-banner.active { animation: none; opacity: 1; transform: none; }
 }
+
+body[data-effects="low"] .ceremony-sigil { display: none; }
+body[data-effects="low"] .result-ornament::before,
+body[data-effects="low"] .result-ornament::after { animation: none; }

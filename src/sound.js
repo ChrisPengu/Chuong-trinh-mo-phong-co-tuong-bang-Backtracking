@@ -1,4 +1,7 @@
+import { PIECE_FX } from "./experience.js";
+
 const STORAGE_KEY = "ky-tri-sound-enabled";
+const VOLUME_KEY = "ky-tri-sound-volume";
 // Curated CC0 recordings from https://kenney.nl/assets/impact-sounds.
 const SAMPLE_FILES = {
   move: ["impactWood_medium_000.ogg", "impactWood_medium_002.ogg", "impactWood_medium_004.ogg"],
@@ -9,9 +12,12 @@ const SAMPLE_FILES = {
 
 export function createSoundManager(storage) {
   let enabled = true;
+  let masterVolume = 0.7;
   try {
     storage ??= globalThis.localStorage;
     enabled = storage?.getItem(STORAGE_KEY) !== "false";
+    const savedVolume = storage?.getItem(VOLUME_KEY);
+    if (savedVolume != null && Number.isFinite(Number(savedVolume))) masterVolume = Math.max(0, Math.min(1, Number(savedVolume)));
   } catch {
     // The game still works when browser storage is unavailable.
   }
@@ -19,6 +25,9 @@ export function createSoundManager(storage) {
   let armed = false;
   let noiseBuffer = null;
   let output = null;
+  let echo = null;
+  let playbackPan = 0;
+  const voices = new Set();
   let samplePromise = null;
   const samples = new Map();
   const sampleIndex = new Map();
@@ -30,7 +39,8 @@ export function createSoundManager(storage) {
     try {
       if (!context) {
         context = new Constructor();
-        output = context.destination;
+        output = context.createGain();
+        output.gain.value = masterVolume;
         if (typeof context.createDynamicsCompressor === "function") {
           const limiter = context.createDynamicsCompressor();
           limiter.threshold.value = -15;
@@ -39,7 +49,17 @@ export function createSoundManager(storage) {
           limiter.attack.value = 0.003;
           limiter.release.value = 0.2;
           limiter.connect(context.destination);
-          output = limiter;
+          output.connect(limiter);
+        } else output.connect(context.destination);
+        if (typeof context.createDelay === "function") {
+          echo = context.createDelay(0.5);
+          echo.delayTime.value = 0.145;
+          const feedback = context.createGain();
+          feedback.gain.value = 0.2;
+          const wet = context.createGain();
+          wet.gain.value = 0.12;
+          echo.connect(feedback); feedback.connect(echo);
+          echo.connect(wet); wet.connect(output);
         }
       }
       if (context.state === "suspended") void context.resume().catch(() => {});
@@ -47,6 +67,36 @@ export function createSoundManager(storage) {
     } catch {
       return null;
     }
+  }
+
+  function track(source, nodes = []) {
+    voices.add(source);
+    source.onended = () => {
+      voices.delete(source);
+      source.disconnect?.();
+      nodes.forEach((node) => node.disconnect?.());
+    };
+  }
+
+  function stopAll() {
+    for (const source of voices) {
+      try { source.stop(); } catch { /* Already ended. */ }
+      source.onended?.();
+    }
+    voices.clear();
+  }
+
+  function route(node, ambience = false) {
+    if (typeof context.createStereoPanner === "function") {
+      const stereo = context.createStereoPanner();
+      stereo.pan.value = playbackPan;
+      node.connect(stereo); stereo.connect(output);
+      if (ambience && echo) stereo.connect(echo);
+      return [stereo];
+    }
+    node.connect(output);
+    if (ambience && echo) node.connect(echo);
+    return [];
   }
 
   function loadSamples() {
@@ -80,14 +130,18 @@ export function createSoundManager(storage) {
     source.playbackRate.value = rate;
     volume.gain.value = gain;
     source.connect(volume);
+    const nodes = [volume];
     if (typeof audio.createStereoPanner === "function") {
       const stereo = audio.createStereoPanner();
       stereo.pan.value = Math.max(-1, Math.min(1, pan));
       volume.connect(stereo);
       stereo.connect(output);
+      if (group === "bell" && echo) stereo.connect(echo);
+      nodes.push(stereo);
     } else {
       volume.connect(output);
     }
+    track(source, nodes);
     source.start(audio.currentTime + at);
     return true;
   }
@@ -105,7 +159,8 @@ export function createSoundManager(storage) {
     envelope.gain.exponentialRampToValueAtTime(Math.max(gain, 0.0002), start + Math.min(0.018, duration / 4));
     envelope.gain.exponentialRampToValueAtTime(0.0001, start + duration);
     oscillator.connect(envelope);
-    envelope.connect(output ?? audio.destination);
+    const nodes = route(envelope, duration > 0.2);
+    track(oscillator, [envelope, ...nodes]);
     oscillator.start(start);
     oscillator.stop(start + duration + 0.02);
   }
@@ -136,15 +191,37 @@ export function createSoundManager(storage) {
     envelope.gain.exponentialRampToValueAtTime(0.0001, start + duration);
     source.connect(filter);
     filter.connect(envelope);
-    envelope.connect(output ?? audio.destination);
+    const nodes = route(envelope);
+    track(source, [filter, envelope, ...nodes]);
     source.start(start);
     source.stop(start + duration + 0.02);
   }
 
-  function play(name, { pan = 0 } = {}) {
+  function play(name, { pan = 0, piece = "P" } = {}) {
     if (!enabled || !armed) return;
+    playbackPan = Number.isFinite(pan) ? Math.max(-1, Math.min(1, pan)) : 0;
+    const profile = PIECE_FX[piece] ?? PIECE_FX.P;
+    if (name === "moveStart" || name === "captureStart") {
+      if (piece === "C" && name === "captureStart") {
+        noise({ duration: 0.23, gain: 0.09, frequency: 340, endFrequency: 1900, filterType: "lowpass" });
+        tone({ frequency: 80, endFrequency: 190, duration: 0.26, gain: 0.055, type: "triangle" });
+      } else if (piece === "H") {
+        [0, 0.09].forEach((at) => tone({ at, frequency: 180, endFrequency: 80, duration: 0.065, gain: 0.055, type: "triangle" }));
+      } else if (piece === "R") {
+        noise({ duration: 0.22, gain: 0.045, frequency: 800, endFrequency: 3200 });
+      } else {
+        tone({ frequency: profile.note, endFrequency: profile.note * 1.5, duration: 0.16, gain: 0.023 });
+      }
+    }
+    if (name === "capture") {
+      const intervals = piece === "K" ? [1, 1.5, 2] : piece === "C" ? [0.5, 1] : [1, 1.5];
+      intervals.forEach((ratio, i) => tone({ at: 0.04 + i * 0.06, frequency: profile.note * ratio,
+        endFrequency: profile.note * ratio * 0.8, duration: 0.3, gain: 0.035, type: "triangle" }));
+    }
     switch (name) {
       case "start":
+        noise({ duration: 0.32, gain: 0.04, frequency: 180, endFrequency: 850, filterType: "lowpass" });
+        tone({ frequency: 98, endFrequency: 65, duration: 0.42, gain: 0.065, type: "triangle" });
         tone({ frequency: 392, duration: 0.24, gain: 0.045 });
         tone({ at: 0.12, frequency: 523, duration: 0.3, gain: 0.055 });
         tone({ at: 0.25, frequency: 659, duration: 0.4, gain: 0.06 });
@@ -160,14 +237,14 @@ export function createSoundManager(storage) {
         tone({ frequency: 320, endFrequency: 95, duration: 0.26, gain: 0.035, type: "triangle" });
         break;
       case "move":
-        if (!sample("move", { gain: 0.46, rate: 0.94 + ((sampleIndex.get("move") ?? 0) % 3) * 0.035, pan })) {
+        if (!sample("move", { gain: 0.46, rate: profile.pitch + ((sampleIndex.get("move") ?? 0) % 3) * 0.035, pan })) {
           noise({ duration: 0.085, gain: 0.07, frequency: 1050, endFrequency: 280, filterType: "lowpass" });
         }
         tone({ frequency: 128, endFrequency: 74, duration: 0.16, gain: 0.044, type: "triangle" });
         tone({ at: 0.026, frequency: 420, endFrequency: 190, duration: 0.075, gain: 0.018, type: "sine" });
         break;
       case "capture":
-        if (!sample("capture", { gain: 0.68, rate: 0.9 + ((sampleIndex.get("capture") ?? 0) % 3) * 0.04, pan })) {
+        if (!sample("capture", { gain: 0.68, rate: profile.pitch * 0.93 + ((sampleIndex.get("capture") ?? 0) % 3) * 0.04, pan })) {
           noise({ duration: 0.11, gain: 0.13, frequency: 1500, endFrequency: 240, filterType: "lowpass" });
         }
         sample("accent", { at: 0.035, gain: 0.2, rate: 0.85, pan: pan * 0.7 });
@@ -188,9 +265,15 @@ export function createSoundManager(storage) {
         sample("bell", { at: 0.44, gain: 0.19, rate: 1.05 });
         break;
       case "win":
+        tone({ frequency: 98, endFrequency: 65, duration: 0.55, gain: 0.075, type: "triangle" });
         sample("bell", { at: 0.06, gain: 0.24, rate: 0.93 });
-        [392, 523, 659, 784].forEach((frequency, index) => {
-          tone({ at: index * 0.13, frequency, duration: 0.34, gain: 0.07 });
+        [392, 523, 659, 784, 1046].forEach((frequency, index) => {
+          tone({ at: index * 0.15, frequency, duration: index === 4 ? 0.65 : 0.34, gain: 0.06 });
+        });
+        break;
+      case "defeat":
+        [392, 330, 262, 196].forEach((frequency, index) => {
+          tone({ at: index * 0.19, frequency, duration: 0.44, gain: 0.05, type: "triangle" });
         });
         break;
       case "draw":
@@ -202,6 +285,15 @@ export function createSoundManager(storage) {
 
   return {
     play,
+    stopAll,
+    getVolume: () => masterVolume,
+    setVolume(value) {
+      if (!Number.isFinite(value)) return masterVolume;
+      masterVolume = Math.max(0, Math.min(1, value));
+      if (output) output.gain.value = enabled ? masterVolume : 0;
+      try { storage?.setItem(VOLUME_KEY, String(masterVolume)); } catch { /* Optional storage. */ }
+      return masterVolume;
+    },
     whenReady: () => samplePromise ?? Promise.resolve(),
     unlock() {
       armed = true;
@@ -211,6 +303,8 @@ export function createSoundManager(storage) {
     isEnabled: () => enabled,
     setEnabled(value) {
       enabled = Boolean(value);
+      if (output) output.gain.value = enabled ? masterVolume : 0;
+      if (!enabled) stopAll();
       try {
         storage?.setItem(STORAGE_KEY, String(enabled));
       } catch {

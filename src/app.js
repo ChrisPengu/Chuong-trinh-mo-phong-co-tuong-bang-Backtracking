@@ -9,9 +9,11 @@ import {
   opposite,
   boardKey,
   findKing,
+  PIECE_NAMES,
 } from "./engine.js";
 import { createSoundManager } from "./sound.js";
 import { getScenario } from "./scenarios.js";
+import { CONTACT, PIECE_FX, movePose, drawMoveEnergy, drawImpactSignature } from "./experience.js";
 
 const canvas = document.querySelector("#board");
 const ctx = canvas.getContext("2d");
@@ -23,6 +25,12 @@ const MARGIN_X = 56;
 const MARGIN_Y = 58;
 const GAP_X = (LOGICAL_WIDTH - MARGIN_X * 2) / 8;
 const GAP_Y = (LOGICAL_HEIGHT - MARGIN_Y * 2) / 9;
+let fxLevel = "high";
+try {
+  const saved = globalThis.localStorage?.getItem("ky-tri-effects");
+  if (["low", "medium", "high"].includes(saved)) fxLevel = saved;
+} catch { /* Optional storage. */ }
+const effectStrength = () => reducedMotion.matches ? 0 : ({ low: 0.3, medium: 0.75, high: 1.2 }[fxLevel]);
 
 const GLYPHS = {
   red: { K: "帥", A: "仕", E: "相", H: "馬", R: "車", C: "炮", P: "兵" },
@@ -106,6 +114,7 @@ let ceremonyTimer;
 let aiTimer;
 let resultTimer;
 let arenaTimer;
+let momentTimer;
 let animationFrame;
 let effectFrame;
 let animationToken = 0;
@@ -134,12 +143,15 @@ function hideResult() {
 }
 
 function cancelPresentation() {
+  sound.stopAll();
   animationToken += 1;
   window.cancelAnimationFrame(animationFrame);
   window.clearTimeout(ceremonyTimer);
   window.clearTimeout(aiTimer);
   window.clearTimeout(resultTimer);
   window.clearTimeout(arenaTimer);
+  window.clearTimeout(momentTimer);
+  document.querySelector("#momentBanner").classList.remove("active");
   window.cancelAnimationFrame(effectFrame);
   effectToken += 1;
   effectLoopRunning = false;
@@ -154,7 +166,7 @@ function cancelPresentation() {
 }
 
 function pulseArena(kind, color) {
-  if (reducedMotion.matches || document.visibilityState === "hidden") return;
+  if (effectStrength() < 0.5 || document.visibilityState === "hidden") return;
   window.clearTimeout(arenaTimer);
   els.boardFrame.classList.remove("arena-impact", "arena-check", "arena-finale");
   els.boardFrame.dataset.energy = color;
@@ -164,6 +176,18 @@ function pulseArena(kind, color) {
   arenaTimer = window.setTimeout(() => {
     els.boardFrame.classList.remove(`arena-${kind}`);
   }, kind === "finale" ? 1150 : 760);
+}
+
+function announceMoment(title, detail, kind = "capture") {
+  const banner = document.querySelector("#momentBanner");
+  window.clearTimeout(momentTimer);
+  banner.dataset.kind = kind;
+  document.querySelector("#momentTitle").textContent = title;
+  document.querySelector("#momentDetail").textContent = detail;
+  banner.classList.remove("active");
+  void banner.offsetWidth;
+  banner.classList.add("active");
+  momentTimer = window.setTimeout(() => banner.classList.remove("active"), 1700);
 }
 
 function showCeremony() {
@@ -202,12 +226,12 @@ function showResult(status) {
   els.resultBackdrop.hidden = false;
   document.body.classList.add("result-open");
   els.resultPanel.focus();
-  sound.play(drawn ? "draw" : "win");
+  sound.play(drawn ? "draw" : mode === "pve" && winner !== humanColor ? "defeat" : "win");
 }
 
-function spawnImpact(row, col, kind, color) {
+function spawnImpact(row, col, kind, color, type = "P") {
   if (reducedMotion.matches || document.visibilityState === "hidden") return;
-  const count = kind === "finale" ? 52 : kind === "capture" ? 36 : kind === "check" ? 26 : 15;
+  const count = Math.ceil((kind === "finale" ? 64 : kind === "capture" ? 44 : kind === "check" ? 30 : 14) * effectStrength());
   const seed = row * 37 + col * 19 + moveLog.length * 53;
   const particles = Array.from({ length: count }, (_, index) => {
     const angle = (index / count) * Math.PI * 2 + (seed % 11) * 0.07;
@@ -222,7 +246,8 @@ function spawnImpact(row, col, kind, color) {
       spin: (index % 2 ? 1 : -1) * (2 + index % 4),
     };
   });
-  impacts.push({ row, col, kind, color, created: performance.now(), duration: kind === "finale" ? 1080 : kind === "capture" ? 860 : 650, particles });
+  impacts.push({ row, col, kind, color, type, created: performance.now(), duration: kind === "finale" ? 1080 : kind === "capture" ? 860 : 650, particles });
+  impacts = impacts.slice(-6);
   if (effectLoopRunning) return;
   effectLoopRunning = true;
   const token = ++effectToken;
@@ -241,9 +266,17 @@ function animateMove(move, piece, captured, onComplete) {
   const pan = (landing.col - 4) * 0.13;
   const duration = reducedMotion.matches || document.visibilityState === "hidden"
     ? 0
-    : Math.min(540, 270 + Math.hypot(move.toRow - move.fromRow, move.toCol - move.fromCol) * 38);
+    : Math.min(650, 390 + Math.hypot(move.toRow - move.fromRow, move.toCol - move.fromCol) * 29);
+  function land() {
+    sound.play(captured ? "capture" : "move", { pan, piece: piece.type });
+    spawnImpact(move.toRow, move.toCol, captured ? "capture" : "move", piece.color, piece.type);
+    if (captured) {
+      pulseArena("impact", piece.color);
+      announceMoment(PIECE_FX[piece.type].label, `${PIECE_NAMES[piece.type]} ăn ${PIECE_NAMES[captured.type]}`);
+    }
+  }
   if (!duration) {
-    sound.play(captured ? "capture" : "move", { pan });
+    land();
     onComplete();
     return;
   }
@@ -251,13 +284,18 @@ function animateMove(move, piece, captured, onComplete) {
   const token = ++animationToken;
   const started = performance.now();
   animation = { move, piece: { ...piece }, captured: captured ? { ...captured } : null, progress: 0 };
-  sound.play(captured ? "captureStart" : "moveStart", { pan });
+  sound.play(captured ? "captureStart" : "moveStart", { pan, piece: piece.type });
+  let landed = false;
   renderBoard();
   renderStatus();
 
   function frame(now) {
     if (token !== animationToken) return;
     animation.progress = Math.min(1, (now - started) / duration);
+    if (!landed && animation.progress >= CONTACT) {
+      landed = true;
+      land();
+    }
     renderBoard();
     if (animation.progress < 1) {
       animationFrame = window.requestAnimationFrame(frame);
@@ -267,9 +305,6 @@ function animateMove(move, piece, captured, onComplete) {
     animating = false;
     renderBoard();
     renderStatus();
-    sound.play(captured ? "capture" : "move", { pan });
-    spawnImpact(move.toRow, move.toCol, captured ? "capture" : "move", piece.color);
-    if (captured) pulseArena("impact", piece.color);
     onComplete();
   }
   animationFrame = window.requestAnimationFrame(frame);
@@ -282,7 +317,8 @@ function finishMove() {
     gameOver = true;
     renderStatus();
     if (!drawReason && status.winner && lastMove) {
-      spawnImpact(lastMove.toRow, lastMove.toCol, "finale", status.winner);
+      spawnImpact(lastMove.toRow, lastMove.toCol, "finale", status.winner, "K");
+      announceMoment("KẾT THÚC VÁN", "Một nước quyết định", "victory");
       pulseArena("finale", status.winner);
       if (!reducedMotion.matches) sound.play("finisher");
     }
@@ -290,7 +326,8 @@ function finishMove() {
   } else {
     if (status.inCheck) {
       const king = findKing(board, turn);
-      if (king) spawnImpact(king.row, king.col, "check", turn);
+      if (king) spawnImpact(king.row, king.col, "check", turn, "K");
+      announceMoment("CHIẾU TƯỚNG", `${turn === RED ? "Đỏ" : "Đen"} phải hóa giải`, "check");
       pulseArena("check", opposite(turn));
       sound.play("check");
     }
@@ -720,10 +757,11 @@ function drawTravelTrail(move, piece, x, y, progress, captured) {
   for (let i = 3; i >= 1; i -= 1) {
     const lag = Math.min(progress, i * 0.045);
     const ghostProgress = Math.max(0, progress - lag);
-    const ghostEase = 1 - Math.pow(1 - ghostProgress, 3);
+    const ghost = movePose(piece.type, ghostProgress, captured);
+    const ghostEase = ghost.travel;
     const to = displayCoordinate(move.toRow, move.toCol);
     const gx = sx + (to.col - from.col) * GAP_X * ghostEase;
-    const gy = sy + (to.row - from.row) * GAP_Y * ghostEase - Math.sin(ghostProgress * Math.PI) * 16;
+    const gy = sy + (to.row - from.row) * GAP_Y * ghostEase - ghost.lift;
     ctx.fillStyle = `rgba(${color},${0.09 * (4 - i) * (1 - progress * 0.55)})`;
     ctx.beginPath();
     ctx.arc(gx, gy, 16 - i * 2, 0, Math.PI * 2);
@@ -751,9 +789,10 @@ function drawImpacts() {
     const finale = impact.kind === "finale";
     const capture = impact.kind === "capture" || finale;
     const check = impact.kind === "check";
-    const color = check || finale ? "223,184,99" : capture ? impact.color === RED ? "226,102,70" : "111,181,152" : "136,98,54";
+    const color = check || finale ? "223,184,99" : PIECE_FX[impact.type].tint;
     ctx.save();
-    if (capture || check) {
+    drawImpactSignature(ctx, { x, y, type: impact.type, progress, strength: effectStrength(), capture });
+    if ((capture || check) && effectStrength() >= 0.5) {
       drawArcaneSeal(x, y, color, progress * (finale ? 5 : 3), (1 - progress) * (finale ? 0.92 : 0.7), 41 + progress * (finale ? 80 : 42));
     }
     const burst = Math.max(0, 1 - progress * 3.5);
@@ -823,7 +862,7 @@ function drawImpacts() {
         ctx.stroke();
       }
     }
-    if ((capture && !finale) || check) {
+    if (check) {
       ctx.fillStyle = `rgba(${color},${Math.sin(progress * Math.PI) * 0.92})`;
       ctx.shadowColor = `rgba(${color},.35)`;
       ctx.shadowBlur = 8;
@@ -843,10 +882,10 @@ function drawPiece(piece, rawRow, rawCol, effects = {}) {
   const radius = Math.min(GAP_X, GAP_Y) * 0.39;
   ctx.save();
   ctx.globalAlpha = effects.alpha ?? 1;
-  if (effects.scale || effects.rotation) {
+  if (effects.scale || effects.scaleX || effects.rotation) {
     ctx.translate(x, y);
     if (effects.rotation) ctx.rotate(effects.rotation);
-    if (effects.scale) ctx.scale(effects.scale, effects.scale);
+    ctx.scale(effects.scaleX ?? effects.scale ?? 1, effects.scaleY ?? effects.scale ?? 1);
     ctx.translate(-x, -y);
   }
   ctx.shadowColor = "rgba(48,28,16,.42)";
@@ -860,6 +899,11 @@ function drawPiece(piece, rawRow, rawCol, effects = {}) {
     fill.addColorStop(0, "#e0c78e");
     fill.addColorStop(1, "#a98654");
   }
+  // Bevel catches a warm top light, while the lower rim gives the disc weight.
+  ctx.fillStyle = "#73512e";
+  ctx.beginPath();
+  ctx.arc(x, y + 3, radius, 0, Math.PI * 2);
+  ctx.fill();
   ctx.fillStyle = fill;
   ctx.beginPath();
   ctx.arc(x, y, radius, 0, Math.PI * 2);
@@ -868,6 +912,12 @@ function drawPiece(piece, rawRow, rawCol, effects = {}) {
   ctx.strokeStyle = piece.color === RED ? "#9d302a" : "#29312c";
   ctx.lineWidth = 2.4;
   ctx.stroke();
+  ctx.strokeStyle = "rgba(255,241,197,.6)";
+  ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  ctx.arc(x, y, radius - 1.6, Math.PI * 1.08, Math.PI * 1.88);
+  ctx.stroke();
+  ctx.strokeStyle = piece.color === RED ? "#9d302a" : "#29312c";
   ctx.beginPath();
   ctx.arc(x, y, radius - 5, 0, Math.PI * 2);
   ctx.lineWidth = 1;
@@ -881,12 +931,20 @@ function drawPiece(piece, rawRow, rawCol, effects = {}) {
 }
 
 function renderBoard() {
+  const resolution = Math.min(window.devicePixelRatio || 1, 2);
+  const pixelWidth = Math.round(LOGICAL_WIDTH * resolution);
+  const pixelHeight = Math.round(LOGICAL_HEIGHT * resolution);
+  if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
+    canvas.width = pixelWidth;
+    canvas.height = pixelHeight;
+  }
+  ctx.setTransform(pixelWidth / LOGICAL_WIDTH, 0, 0, pixelHeight / LOGICAL_HEIGHT, 0, 0);
   drawBoardSurface();
   drawMoveMarker(lastMove, "rgba(252,225,149,.72)");
   drawHintArrow(hintMove);
-  if (animation) {
+  if (animation && effectStrength() >= 0.5) {
     const point = displayCoordinate(animation.move.toRow, animation.move.toCol);
-    const tint = animation.piece.color === RED ? "229,156,97" : "129,190,158";
+    const tint = PIECE_FX[animation.piece.type].tint;
     drawArcaneSeal(MARGIN_X + point.col * GAP_X, MARGIN_Y + point.row * GAP_Y,
       tint, animation.progress * 2.4, (0.18 + Math.sin(animation.progress * Math.PI) * 0.43),
       animation.captured ? 52 : 43);
@@ -898,6 +956,8 @@ function renderBoard() {
     ctx.beginPath();
     ctx.arc(MARGIN_X + point.col * GAP_X, MARGIN_Y + point.row * GAP_Y, 35, 0, Math.PI * 2);
     ctx.fill();
+    drawArcaneSeal(MARGIN_X + point.col * GAP_X, MARGIN_Y + point.row * GAP_Y,
+      PIECE_FX[board[selected.row][selected.col].type].tint, 0, 0.75, 38);
   }
   for (const move of legalTargets) {
     const point = displayCoordinate(move.toRow, move.toCol);
@@ -926,18 +986,31 @@ function renderBoard() {
     const { move, piece, captured, progress } = animation;
     const from = displayCoordinate(move.fromRow, move.fromCol);
     const to = displayCoordinate(move.toRow, move.toCol);
-    const ease = 1 - Math.pow(1 - progress, 3);
+    const pose = movePose(piece.type, progress, captured);
+    const ease = pose.travel;
     const x = MARGIN_X + (from.col + (to.col - from.col) * ease) * GAP_X;
-    const y = MARGIN_Y + (from.row + (to.row - from.row) * ease) * GAP_Y - Math.sin(progress * Math.PI) * 16;
-    drawTravelTrail(move, piece, x, y, progress, captured);
+    const y = MARGIN_Y + (from.row + (to.row - from.row) * ease) * GAP_Y - pose.lift;
+    ctx.save();
+    ctx.fillStyle = `rgba(45,29,18,${0.2 - pose.lift * 0.001})`;
+    ctx.beginPath();
+    ctx.ellipse(x, y + pose.lift + 8, 27 - pose.lift * 0.12, 10 - pose.lift * 0.04, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    if (effectStrength() < 0.5) drawTravelTrail(move, piece, x, y, progress, captured);
+    else drawMoveEnergy(ctx, {
+      sx: MARGIN_X + from.col * GAP_X, sy: MARGIN_Y + from.row * GAP_Y,
+      tx: MARGIN_X + to.col * GAP_X, ty: MARGIN_Y + to.row * GAP_Y,
+      x, y, progress, type: piece.type, captured: Boolean(captured), strength: effectStrength(),
+    });
     if (captured) {
+      const dissolve = Math.max(0, (progress - CONTACT) / (1 - CONTACT));
       drawPiece(captured, move.toRow, move.toCol, {
-        alpha: Math.max(0, 1 - progress * 1.5),
-        scale: Math.max(0.65, 1 - progress * 0.3),
-        rotation: progress * 0.25,
+        alpha: 1 - dissolve,
+        scale: 1 - dissolve * 0.35,
+        rotation: dissolve * 0.4,
       });
     }
-    drawPiece(piece, move.toRow, move.toCol, { x, y, scale: 1 + Math.sin(progress * Math.PI) * 0.09 });
+    drawPiece(piece, move.toRow, move.toCol, { x, y, scaleX: pose.scaleX, scaleY: pose.scaleY });
   }
   drawImpacts();
 }
@@ -1065,5 +1138,26 @@ els.sideButtons.forEach((button) => button.addEventListener("click", () => {
   resetGame();
 }));
 
+const fxSelect = document.querySelector("#fxLevel");
+const volumeSlider = document.querySelector("#soundVolume");
+fxSelect.value = fxLevel;
+document.body.dataset.effects = fxLevel;
+volumeSlider.value = Math.round(sound.getVolume() * 100);
+document.querySelector("#volumeValue").textContent = `${volumeSlider.value}%`;
+fxSelect.addEventListener("change", () => {
+  fxLevel = ["low", "medium", "high"].includes(fxSelect.value) ? fxSelect.value : "high";
+  document.body.dataset.effects = fxLevel;
+  try { globalThis.localStorage?.setItem("ky-tri-effects", fxLevel); } catch { /* Optional storage. */ }
+  impacts = [];
+  window.clearTimeout(arenaTimer);
+  els.boardFrame.classList.remove("arena-impact", "arena-check", "arena-finale");
+  renderBoard();
+});
+volumeSlider.addEventListener("input", () => {
+  sound.setVolume(Number(volumeSlider.value) / 100);
+  document.querySelector("#volumeValue").textContent = `${Math.round(sound.getVolume() * 100)}%`;
+});
+volumeSlider.addEventListener("change", () => { sound.unlock(); sound.play("select"); });
+window.addEventListener?.("resize", renderBoard);
 updateSoundButton();
 resetGame();
