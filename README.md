@@ -2,7 +2,7 @@
 
 > Bài tập lớn môn Trí tuệ nhân tạo: xây dựng game cờ tướng chạy trên trình duyệt, trong đó phần mình tập trung nhất là thuật toán tìm nước đi cho máy.
 
-Kỳ Thập có hai chế độ: hai người chơi trên cùng một thiết bị và người chơi đấu với AI. Mình chọn làm ứng dụng web thuần JavaScript để phần luật cờ, tìm kiếm và giao diện có thể đọc trực tiếp trong mã nguồn, không phụ thuộc vào engine cờ hay dịch vụ AI bên ngoài. AI không được “dạy sẵn” các nước khai cuộc: mỗi lượt máy tự sinh nước hợp lệ, thử các nhánh tiếp theo, lượng giá rồi hoàn tác bàn cờ để xét nhánh khác.
+Kỳ Thập có hai chế độ: hai người chơi trên cùng một thiết bị và người chơi đấu với AI. Phần luật cờ và tìm kiếm được viết bằng JavaScript, không phụ thuộc vào engine cờ hay dịch vụ AI bên ngoài. Bản **Huyền Giới** bổ sung đấu trường 3D bằng Three.js; bàn cờ Canvas 2D vẫn được giữ để chạy trên thiết bị không hỗ trợ WebGL. AI không được “dạy sẵn” các nước khai cuộc: mỗi lượt máy tự sinh nước hợp lệ, thử các nhánh tiếp theo, lượng giá rồi hoàn tác bàn cờ để xét nhánh khác.
 
 ## Mục lục
 
@@ -17,7 +17,9 @@ Kỳ Thập có hai chế độ: hai người chơi trên cùng một thiết b�
 
 ## Chạy thử trên máy
 
-**Yêu cầu:** Node.js từ phiên bản 18 trở lên và một trình duyệt hiện đại có hỗ trợ JavaScript module, Canvas, Web Worker. Dự án không dùng thư viện npm bên ngoài, vì vậy sau khi tải mã nguồn về không cần chạy `npm install`.
+**Yêu cầu chạy game:** Node.js từ phiên bản 18 trở lên và trình duyệt hỗ trợ JavaScript module, Canvas, Web Worker. Đấu trường 3D cần **WebGL2** và bật tăng tốc phần cứng. Nếu không có WebGL2 hoặc GPU bị mất ngữ cảnh, game chuyển về 2D, không mất ván đang chơi.
+
+Repo đã kèm bản Three.js đóng gói trong `vendor/three.js`, nên chỉ để chơi hoặc chạy unit test thì **không cần `npm install`**. Không xóa thư mục `vendor/` khi đưa lên GitHub. Công cụ phát triển/kiểm thử trình duyệt nên dùng Node.js 22 trở lên.
 
 Trên PowerShell (Windows):
 
@@ -30,11 +32,23 @@ Trên macOS hoặc Linux, dùng `npm start` thay cho `npm.cmd start`. Mở đị
 
 Không nên mở `index.html` bằng đường dẫn `file://`: Web Worker dạng module và tệp âm thanh cần được phục vụ qua HTTP. Muốn dừng server, nhấn `Ctrl+C` trong terminal đang chạy nó.
 
+Nếu vẫn thấy giao diện cũ “So tài trên cửu lộ, thập hoành”: kiểm tra URL terminal vừa in và mở đường dẫn **Mở bản mới** có `?v=huyen-gioi-3d-2026-09-24`. Bản mới có tiêu đề **Huyền Giới 3D** cùng mục **Hiển thị / Góc nhìn** phía trên sân. Địa chỉ `/__version` phải trả mã `huyen-gioi-3d-2026-09-24`; nếu không, cổng đó đang trỏ tới server khác/cũ. Server hiện luôn phục vụ thư mục chứa `server.mjs` và in rõ thư mục này khi khởi động.
+
 Chạy kiểm thử:
 
 ```powershell
 npm.cmd test
 ```
+
+Nếu sửa phần 3D, cập nhật thư viện hoặc muốn chạy kiểm thử trên trình duyệt thật:
+
+```powershell
+npm.cmd ci
+npm.cmd run build:vendor
+npm.cmd run test:browser
+```
+
+`build:vendor` dùng esbuild để đóng gói Three.js và các pass hậu kỳ, đồng thời chép giấy phép MIT. `test:browser` dùng Chrome/Edge đã cài trên Windows, chạy headless bằng profile tạm riêng và server cổng trống; không đọc profile trình duyệt cá nhân. Có thể đặt `CHROME_PATH` nếu trình duyệt ở đường dẫn khác. Trên máy chưa có trình duyệt phù hợp, chạy `npx playwright install chromium`. Ảnh kiểm tra nằm trong `.artifacts/`, được git bỏ qua. Kiểm thử dùng bộ dựng hình phần mềm để chạy được cả trên máy CI, **không phải phép đo FPS của GPU thật**.
 
 Nếu terminal báo `npm` không tồn tại, hãy kiểm tra Node.js đã được cài và mở lại terminal. Nếu không nghe tiếng ngay khi vừa tải trang thì đó là cơ chế chặn autoplay của trình duyệt; âm thanh bắt đầu sau thao tác đầu tiên của người chơi. Nút **Âm thanh** ở góc trên cho phép bật/tắt tiếng.
 
@@ -52,6 +66,9 @@ Các thao tác chính:
 | **Xoay bàn** | Đổi hướng nhìn bàn cờ, hữu ích khi cầm quân Đen hoặc chơi hai người. |
 | **Thế cờ kiểm thử** | Nạp nhanh bàn cờ khai cuộc, thế chiếu bí trong một nước hoặc thế đã kết thúc. |
 | **Âm thanh** | Bật/tắt SFX; lựa chọn được lưu trong trình duyệt. |
+| **Hiển thị** | Ngay trên bàn cờ: chuyển giữa Đấu trường 3D và Bàn cờ 2D, giữ nguyên ván. |
+| **Góc nhìn** | Chọn Phối cảnh hoặc Nhìn từ trên; độc lập với nút Xoay bàn. |
+| **Trải nghiệm** | Bên dưới nút Ván mới: mức hiệu ứng và thanh âm lượng. |
 
 Giao diện còn có lịch sử nước đi, thông báo chiếu/kết thúc ván và số liệu lượt tìm kiếm gần nhất của AI: độ sâu hoàn tất, số nút đã duyệt và thời gian xử lý. Trạng thái **AI đang suy nghĩ** nằm phía trên bàn cờ, không che các ô cờ. AI chạy trong Web Worker để giao diện không bị đứng khi tìm kiếm.
 
@@ -104,20 +121,25 @@ AI trả về nước chọn, điểm lượng giá, độ sâu hoàn tất, s�
 .
 ├── index.html              Giao diện và các nút điều khiển
 ├── styles.css              Bố cục responsive, hoạt ảnh CSS
+├── arena.css               Giao diện Huyền Giới và bố cục sân 3D
 ├── server.mjs              HTTP server nhỏ để chạy tại máy
 ├── src/
 │   ├── engine.js           Biểu diễn bàn cờ, luật, nước hợp lệ, kết thúc ván
 │   ├── ai.js               Lượng giá và thuật toán tìm kiếm
 │   ├── ai-worker.js        Nhận yêu cầu tìm kiếm ở luồng riêng
 │   ├── app.js              Trạng thái ván, Canvas, tương tác và VFX
+│   ├── arena3d.js          Three.js: sân, quân, raycasting, ánh sáng và VFX
 │   ├── sound.js            Phát SFX, trộn mẫu âm với Web Audio
 │   ├── experience.js       Màu, quỹ đạo và hiệu ứng riêng cho từng loại quân
 │   └── scenarios.js        Các thế cờ mẫu
 ├── assets/sfx/             Mẫu âm .ogg và ghi chú nguồn/giấy phép
+├── vendor/                 Three.js đóng gói + giấy phép MIT (cần commit)
+├── scripts/                Build vendor và kiểm tra trình duyệt thật
 ├── test/                   Kiểm thử tự động
 ├── .gitignore              Các loại tệp không đưa lên GitHub
 ├── Update.md               Nhật ký các thay đổi của đồ án
-└── package.json            Lệnh start và test
+├── package-lock.json       Khóa phiên bản thư viện để cài lại bằng npm ci
+└── package.json            Lệnh chạy, build thư viện và kiểm thử
 ```
 
 Luồng một lượt đấu máy, tóm tắt:
@@ -141,6 +163,7 @@ Chạy `npm.cmd test` (hoặc `npm test` trên macOS/Linux). Bộ test sử dụ
 - Điều kiện kết thúc: chiếu bí, bí nước, các thế đã thắng.
 - AI: lượng giá theo hai phía, tìm nước bắt Tướng/chiếu bí, tính hợp lệ của biến chính và thống kê tìm kiếm.
 - Giao diện/âm thanh: khởi chạy và tương tác cơ bản, trạng thái AI không phủ bàn cờ, SFX có âm dự phòng và tải được mẫu âm cục bộ.
+- Trình duyệt thật (`npm run test:browser`): khởi tạo WebGL, bấm nước hợp lệ trên bàn 3D, chọn quân khi xoay bàn, hoàn tác, đổi camera, ăn quân/chiếu bí, chuyển 2D↔3D, màn hình nhỏ và giảm chuyển động. Script báo lỗi nếu có lỗi JavaScript, shader hoặc tải tài nguyên.
 
 Trong giao diện, mục **Thế cờ kiểm thử** có năm lựa chọn: bàn cờ ban đầu; Đỏ hoặc Đen thắng trong một nước; Đỏ hoặc Đen đã thắng. Đây là cách nhanh nhất để trình diễn AI và màn kết thúc mà không phải đánh hết một ván.
 
@@ -148,15 +171,19 @@ Trong giao diện, mục **Thế cờ kiểm thử** có năm lựa chọn: bàn
 
 Trong mục **Trải nghiệm**, có ba mức **Tinh gọn / Cân bằng / Rực lửa** và thanh âm lượng 0–100%. Cả hai lựa chọn đều được lưu trên trình duyệt. Mặc định VFX ở mức Rực lửa, âm lượng 70%; người dùng bật giảm chuyển động trong hệ điều hành vẫn được ưu tiên.
 
-Mỗi loại quân có một bộ màu, cao độ và dấu va chạm riêng. Xe có vệt lao xanh và các đường chém cong; Pháo tạo cầu năng lượng màu hổ phách cùng sóng xung kích elip; Mã bật cao, có vệt móng và nhịp âm kép. Tướng, Sĩ, Tượng và Tốt dùng những dấu ấn hình học và lớp âm nhẹ khác nhau. Chuyển động có nhịp lấy đà, chạm và đáp; tiếng ăn quân phát ở thời điểm chạm ô đích, quân bị ăn chỉ tan đi sau lúc đó. Thông báo sự kiện nằm dưới bàn cờ.
+Đấu trường **Thiên Cơ Đài** là cảnh 3D thật: bàn đá nhiều tầng nổi giữa không gian tối, tinh thể ngọc/đỏ, quân có độ dày, bóng đổ, viền kim loại và hậu kỳ bloom ở mức Rực lửa. Chữ quân được tạo bằng CanvasTexture rồi đặt lên mặt quân, không dùng mô hình tải từ bên ngoài. Phép chiếu tia (raycasting) giúp chọn đúng quân trong cả hai góc nhìn; chọn quân có độ cao trước khi xét mặt bàn để tránh lệch do phối cảnh.
 
-Mình bổ sung tiếng vang ngắn cho các âm ngân, phối riêng nhạc hiệu mở ván/thắng/thua và điều khiển âm lượng tổng. Nút tắt tiếng dừng cả các nguồn âm đã hẹn phát. Khi tạo ván mới hoặc hoàn tác, game hủy các nguồn âm đang chạy cùng hiệu ứng cũ. Bàn cờ được vẽ theo mật độ điểm ảnh của màn hình (tối đa 2×), giúp chữ và viền quân nét hơn trên màn hình HiDPI.
+Mỗi loại quân có màu và quỹ đạo riêng: Xe lao thấp kèm đường chém; Pháo bay theo cung với cầu năng lượng, bụi khói; Mã bật cao; Tượng có lớp bụi đá/ngọc. Ăn quân có phù văn mặt đất, mảnh vỡ chuyển động trong không gian và ánh sáng cục bộ. Tướng/chiếu/kết thúc có thêm cột năng lượng. Chuyển động có nhịp lấy đà, chạm và đáp; tiếng ăn quân phát ở thời điểm chạm ô đích, quân bị ăn thu nhỏ và biến mất sau lúc đó. Thông báo sự kiện nằm dưới bàn cờ.
+
+Phần SFX có tiếng gỗ thu sẵn làm điểm chạm, kết hợp âm riêng của từng quân: Pháo trầm và tiếng mảnh vỡ, Xe có âm kim loại, Mã có nhịp vó, Tượng có thân âm thấp/chuông ngọc, Sĩ có chùm âm cao, Tướng có chuông trầm. Mình thêm reverb stereo bằng impulse tự sinh để tạo cảm giác không gian, cùng nhạc hiệu mở ván/thắng/thua. Đây là âm thiết kế bằng Web Audio, không phải bản thu dàn nhạc hay âm của TFT.
+
+Nút tắt tiếng dừng các nguồn âm đã hẹn phát và tắt đầu ra tổng. Khi tạo ván mới hoặc hoàn tác, game hủy nguồn âm cùng hiệu ứng cũ. Chất lượng 3D giới hạn mật độ điểm ảnh theo mức hiệu ứng (1× / 1,3× / 1,7×), tắt bloom ở mức Cân bằng, tắt thêm bóng đổ ở mức Tinh gọn. 2D giữ tối đa 2×. Renderer không vẽ khung hình khi tab bị ẩn; tài nguyên GPU được giải phóng khi chuyển sang 2D.
 
 Để thử nhanh hiệu ứng ăn quân và kết thúc: chọn **Hai người**, nạp **Đỏ thắng trong 1 nước**, chọn Xe Đỏ ở cột giữa rồi ăn Tốt Đen ngay phía trên. Có thể đổi mức VFX để so sánh độ dày của hạt và lớp năng lượng.
 
-Nước đi có vệt lướt và dư ảnh; ô đích xuất hiện vòng phù văn xoay trước khi quân đáp xuống. Ăn quân có thêm dải năng lượng, bụi, mảnh vỡ, tia sáng và phản ứng ở viền bàn cờ. Khi kết thúc ván, game dành một nhịp cho hiệu ứng kết thúc rồi mới mở bảng kết quả. Mở ván có vòng triệu hồi; dấu ấn trên bảng kết quả chuyển động nhẹ. Đây là hiệu ứng **lấy cảm hứng từ cảm giác arena/“Boom” của TFT**, tự vẽ bằng Canvas/CSS; dự án không dùng hình, âm thanh hay nhân vật của Riot. Game **không nháy phủ toàn màn hình** sau mỗi nước đi. Nếu hệ điều hành bật `prefers-reduced-motion`, hoạt ảnh di chuyển và các phản ứng trang trí được rút bỏ.
+Khi mở ván, các quân xuất hiện so le như được triệu hồi xuống sân. Khi kết thúc, game dành một nhịp trình diễn trước bảng kết quả. Đây là hướng **lấy cảm hứng từ cảm giác đấu trường huyền ảo**, tự dựng bằng Three.js/Canvas/CSS; dự án không dùng hình, âm thanh hay nhân vật của Riot và không phải bản sao TFT. Game **không nháy phủ toàn màn hình** sau mỗi nước đi. Nếu hệ điều hành bật `prefers-reduced-motion`, chuyển động quân, hạt và các phản ứng trang trí được rút bỏ.
 
-SFX kết hợp tiếng gỗ/kim loại/chuông thu sẵn với các lớp âm tổng hợp bằng Web Audio. Game đổi biến thể tiếng gỗ giữa các lượt, định vị stereo nhẹ theo cột trên bàn và có bộ giới hạn âm lượng. Nếu trình duyệt không tải hoặc giải mã được `.ogg`, phần âm tổng hợp vẫn phát được. Tám mẫu âm trong `assets/sfx/` được chọn từ [Kenney Impact Sounds](https://kenney.nl/assets/impact-sounds), giấy phép **CC0**; danh sách tệp và cách dùng ghi tại [`assets/sfx/README.md`](assets/sfx/README.md). Font giao diện được tải từ Google Fonts; nếu offline, trình duyệt dùng font dự phòng.
+SFX đổi biến thể tiếng gỗ giữa các lượt, định vị stereo nhẹ theo cột trên bàn và đi qua bộ nén âm lượng tổng. Nếu trình duyệt không tải hoặc giải mã được `.ogg`, phần âm tổng hợp vẫn phát được. Tám mẫu âm trong `assets/sfx/` được chọn từ [Kenney Impact Sounds](https://kenney.nl/assets/impact-sounds), giấy phép **CC0**; danh sách tệp và cách dùng ghi tại [`assets/sfx/README.md`](assets/sfx/README.md). Three.js theo MIT, giấy phép nằm trong `vendor/THREE-LICENSE.txt`. Font dùng bộ font sẵn có trên máy; game không phụ thuộc CDN hoặc Google Fonts khi chạy.
 
 ## Giới hạn hiện tại
 
@@ -164,12 +191,14 @@ SFX kết hợp tiếng gỗ/kim loại/chuông thu sẵn với các lớp âm t
 - Chưa có đồng hồ thi đấu, lưu/tải ván, đấu qua mạng hoặc opening book/endgame tablebase.
 - Bảng nhớ dùng chuỗi bàn cờ; có thể nâng cấp lên Zobrist hashing để giảm chi phí tạo khóa.
 - Đây là AI tìm kiếm theo hàm lượng giá viết tay, không phải mô hình machine learning và không có bảo đảm chơi ngang các engine cờ tướng chuyên nghiệp.
+- 3D hiện là phong cách procedural/stylized: chưa có nhân vật hoạt hình, mô hình/texture do họa sĩ làm riêng, nhạc nền dàn nhạc hoặc cinematic dài. Không nên hiểu phiên bản này đã đạt chất lượng sản xuất của TFT.
+- FPS phụ thuộc GPU, độ phân giải và mức hiệu ứng. Máy yếu nên chọn Cân bằng/Tinh gọn hoặc chuyển 2D. Điều khiển bàn cờ hiện dùng chuột/chạm, chưa hỗ trợ đi quân hoàn toàn bằng bàn phím.
 
 Mình giữ các giới hạn này trong README để người xem repo biết rõ phần nào đã hoàn thành và phần nào vẫn là hướng mở rộng, thay vì chỉ nhìn giao diện rồi hiểu nhầm dự án là một nền tảng thi đấu đầy đủ.
 
 ## Đưa lên GitHub
 
-Chỉ cần đưa các tệp mã nguồn, test, tài liệu và `assets/sfx/` lên repo. Dự án hiện không có `node_modules` hay bộ thư viện npm cần cài. `.gitignore` chặn log, cache, bản build, file môi trường và tệp tải/giải nén tạm nếu chúng xuất hiện sau này. **Không xóa tám tệp `.ogg`**: chúng là âm thanh đang được game sử dụng. `Update.md` được giữ như nhật ký thay đổi.
+Đưa mã nguồn, test, tài liệu, `assets/`, `vendor/`, `scripts/`, `package.json` và `package-lock.json` lên repo. **Không đưa `node_modules/`, `.artifacts/`, báo cáo kiểm thử hoặc log lên GitHub**; `.gitignore` đã chặn các mục này. `vendor/` là ngoại lệ có chủ đích: chứa thư viện runtime được đóng gói để tải repo xong có thể chạy game ngay. Không xóa tám tệp `.ogg` hoặc giấy phép Three.js vì game đang sử dụng chúng. `Update.md` được giữ như nhật ký thay đổi.
 
 Trước khi tạo commit, nên chạy lại:
 
@@ -182,6 +211,7 @@ Nếu muốn cho phép người khác tái sử dụng mã nguồn theo một gi
 
 ## Tài liệu tham khảo
 
+- [Three.js WebGLRenderer](https://threejs.org/docs/pages/WebGLRenderer.html) và [UnrealBloomPass](https://threejs.org/docs/pages/UnrealBloomPass.html): dựng cảnh WebGL2, bóng và ánh sáng hậu kỳ.
 - [World Xiangqi Rules - World Xiangqi Federation](https://www.wxf-xiangqi.org/index.php?Itemid=291&id=269&lang=en&option=com_content&view=article): trang giới thiệu và đường dẫn tới bộ luật thi đấu.
 - [Introduction to Xiangqi - World Xiangqi Federation](https://www.wxf-xiangqi.org/index.php?Itemid=304&id=208&lang=en&option=com_content&view=article): thuật ngữ và cách chơi.
 - [Impact Sounds — Kenney](https://kenney.nl/assets/impact-sounds) và [trang hỗ trợ giấy phép của Kenney](https://kenney.nl/support): nguồn mẫu âm CC0.

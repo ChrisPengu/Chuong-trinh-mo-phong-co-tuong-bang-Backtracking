@@ -125,6 +125,8 @@ let effectLoopRunning = false;
 let animating = false;
 let ceremonyActive = false;
 let resultShown = false;
+let arena3d = null;
+let arenaLoadVersion = 0;
 
 function createWorker() {
   worker?.terminate();
@@ -192,6 +194,7 @@ function announceMoment(title, detail, kind = "capture") {
 
 function showCeremony() {
   ceremonyActive = true;
+  renderBoard();
   els.ceremony.hidden = false;
   els.ceremony.classList.remove("ceremony-play");
   void els.ceremony.offsetWidth;
@@ -202,6 +205,7 @@ function showCeremony() {
     els.ceremony.hidden = true;
     els.boardFrame.classList.remove("board-entering");
     ceremonyActive = false;
+    renderBoard();
     renderStatus();
     const status = getGameStatus(board, turn);
     if (status.over) {
@@ -525,7 +529,12 @@ function handleBoardPointer(event) {
   const logicalY = ((event.clientY - rect.top) / rect.height) * LOGICAL_HEIGHT;
   let col = Math.round((logicalX - MARGIN_X) / GAP_X);
   let row = Math.round((logicalY - MARGIN_Y) / GAP_Y);
-  if (flipped) {
+  if (arena3d && event.currentTarget?.id === "arena3d") {
+    const cell = arena3d.pick(event.clientX, event.clientY);
+    if (!cell) return;
+    row = cell.row;
+    col = cell.col;
+  } else if (flipped) {
     row = 9 - row;
     col = 8 - col;
   }
@@ -931,6 +940,11 @@ function drawPiece(piece, rawRow, rawCol, effects = {}) {
 }
 
 function renderBoard() {
+  if (arena3d) {
+    arena3d.sync({ board, selected, legalTargets, lastMove, hintMove, animation, impacts,
+      flipped, fxLevel, reducedMotion: reducedMotion.matches, ceremonyActive });
+    return;
+  }
   const resolution = Math.min(window.devicePixelRatio || 1, 2);
   const pixelWidth = Math.round(LOGICAL_WIDTH * resolution);
   const pixelHeight = Math.round(LOGICAL_HEIGHT * resolution);
@@ -1161,3 +1175,48 @@ volumeSlider.addEventListener("change", () => { sound.unlock(); sound.play("sele
 window.addEventListener?.("resize", renderBoard);
 updateSoundButton();
 resetGame();
+
+// Lazy-loaded renderer; rules, workers and the accessible controls do not depend on WebGL.
+if (typeof document.createElement === "function") {
+  const arenaCanvas = document.querySelector("#arena3d");
+  const rendererSelect = document.querySelector("#rendererMode");
+  const cameraSelect = document.querySelector("#cameraView");
+  const rendererStatus = document.querySelector("#rendererStatus");
+  const use2D = (message = "Bàn cờ 2D · tương thích") => {
+    arena3d?.dispose(); arena3d = null;
+    arenaCanvas.hidden = true; canvas.hidden = false;
+    els.boardFrame.classList.remove("has-arena");
+    rendererStatus.textContent = message;
+    rendererSelect.value = "2d"; cameraSelect.disabled = true;
+    renderBoard();
+  };
+  const use3D = async () => {
+    const version = ++arenaLoadVersion;
+    rendererStatus.textContent = "Đang khởi tạo đấu trường…";
+    try {
+      const { createArena } = await import("./arena3d.js");
+      if (version !== arenaLoadVersion) return;
+      arenaCanvas.hidden = false; canvas.hidden = true;
+      els.boardFrame.classList.add("has-arena");
+      arena3d = createArena(arenaCanvas, { onContextLost: () => use2D("GPU gián đoạn · đã chuyển 2D") });
+      arena3d.setView(cameraSelect.value); cameraSelect.disabled = false;
+      rendererStatus.textContent = "3D LIVE · HUYỀN GIỚI";
+      renderBoard();
+    } catch (error) {
+      console.warn("3D unavailable; using 2D fallback:", error);
+      use2D("WebGL không khả dụng · đang dùng 2D");
+    }
+  };
+  arenaCanvas.addEventListener("pointerup", handleBoardPointer);
+  rendererSelect.addEventListener("change", () => {
+    if (rendererSelect.value === "3d") void use3D();
+    else { arenaLoadVersion++; use2D(); }
+  });
+  cameraSelect.addEventListener("change", () => arena3d?.setView(cameraSelect.value));
+  reducedMotion.addEventListener?.("change", renderBoard);
+  window.addEventListener("pagehide", () => { arena3d?.dispose(); arena3d = null; sound.stopAll(); });
+  window.addEventListener("pageshow", event => {
+    if (event.persisted && rendererSelect.value === "3d") void use3D();
+  });
+  void use3D();
+}

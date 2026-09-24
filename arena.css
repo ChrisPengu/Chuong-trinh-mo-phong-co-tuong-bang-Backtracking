@@ -1,0 +1,64 @@
+/* Huyền Giới — presentation layer. The classic board remains available. */
+:root { --ink: #edf4ee; --muted: #92a4af; --line: #a1c9d51c; --gold: #d3bd87; --panel: #0e1928; }
+body { background: radial-gradient(ellipse at 51% 30%, #19344888, transparent 48%), radial-gradient(ellipse at 75% 90%, #253f4240, transparent 50%), #080f1b; }
+body::before { content: ""; position: fixed; inset: 0; pointer-events: none; background: linear-gradient(125deg, transparent 25%, #69d1c405 25.1%, transparent 25.3%, transparent 74%, #69d1c408 74.1%, transparent 74.3%); }
+.app-shell { width: min(1720px, calc(100% - 48px)); }
+.topbar { min-height: 78px; }
+.brand-mark { color: #e4c68c; border-color: #c2a97580; background: #d8b65a0a; box-shadow: 0 0 24px #d8b65a10, inset 0 0 0 4px #d8b65a08; }
+.brand small { color: #6b929d; }
+.hero-copy { padding: 26px 12px 27px; }
+.hero-copy h1 { font-size: clamp(25px, 2.45vw, 40px); }
+.hero-copy h1 em { color: #e4c990; }
+.hero-copy > p:last-child { font-size: 11px; color: #869dab; margin-top: 9px; }
+.eyebrow { color: #6ecebb; font-size: 9px; letter-spacing: .32em; margin-bottom: 9px; }
+.game-layout { grid-template-columns: 250px minmax(400px, 1fr) 250px; gap: 20px; }
+.panel { border-radius: 12px; padding: 20px; background: linear-gradient(155deg, #152435ec, #0c1623f2); border: 1px solid #95bed41d; box-shadow: 0 20px 65px #0003, inset 0 1px #bfd7ec07; }
+.control-panel, .info-panel { margin-top: 0; }
+.panel-heading { padding-bottom: 16px; margin-bottom: 18px; }
+.panel-heading h2 { font-size: 18px; }
+.step { color: #d5c493; border-color: #cbbf8845; }
+.segmented, select, .side-card, .secondary-actions button { background-color: #0a1522; border-color: #8cb3cc25; }
+.segment.active { background: #294349; color: #c4f3e5; }
+.segment { color: #a0b3bf; }
+.side-card.active { background: #e56c4810; border-color: #f49a6460; }
+.primary-btn { border-radius: 6px; background: linear-gradient(120deg, #b89253, #806038); border-color: #e5c48470; color: #fff5dc; box-shadow: 0 7px 24px #b38a4020; }
+.experience-controls { padding-top: 17px; border-top-color: #91c1dc24; }
+.experience-heading { color: #83d5c2; }
+.experience-controls p { color: #92a4af; }
+.board-column { min-width: 0; position: relative; }
+.arena-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 0 12px 15px; }
+.arena-identity { display: flex; align-items: center; gap: 10px; }
+.live-gem { color: #77e1ca; text-shadow: 0 0 16px #77e1ca70; font-size: 23px; }
+.arena-identity strong { display: block; font-size: 11px; letter-spacing: .16em; color: #e5d2ac; }
+.arena-identity small { display: block; font-size: 8px; color: #78b7b8; margin-top: 5px; letter-spacing: .1em; }
+.arena-options { display: flex; gap: 8px; }
+.arena-options label > span { display: block; font-size: 8px; color: #8ea7b7; margin-bottom: 4px; }
+.arena-options select { font-size: 10px; padding: 7px 8px; background: #101e2e; width: auto; max-width: 145px; }
+.player-strip { margin-left: 15px; margin-right: 15px; border-radius: 7px; background: linear-gradient(90deg, #24494044, #183a3510 75%); padding: 9px 12px; border-bottom-color: #81bfb22b; }
+.red-strip { background: linear-gradient(90deg, #5b302f4a, #5b302f08 75%); border-bottom-color: #d996632b; }
+.black-avatar { background: #29564e; color: #a1edcb; border: 1px solid #70bf9d66; }
+.red-avatar { background: #4a2526; color: #ffaf8a; }
+.board-frame.has-arena { position: relative; padding: 0; border: 0; outline: 0; background: transparent; box-shadow: none; aspect-ratio: auto; height: clamp(510px, calc(100vh - 370px), 760px); margin-top: -4px; }
+.board-frame.has-arena::before, .board-frame.has-arena::after { display: none; }
+#arena3d { display: block; width: 100%; height: 100%; touch-action: manipulation; cursor: pointer; border-radius: 8px; }
+.has-arena.board-entering { animation: none; }
+.has-arena.arena-impact, .has-arena.arena-check, .has-arena.arena-finale { animation: none; }
+.has-arena .ceremony { background: radial-gradient(ellipse, #081728da 0, #08172888 40%, transparent 73%); backdrop-filter: none; border: 0; }
+.has-arena .ceremony strong { color: #f4deb0; text-shadow: 0 3px 24px #000; }
+.has-arena .ceremony-sigil { border-color: #7ff5d056; box-shadow: 0 0 50px #57d6d00a; }
+.arena-hint { margin: -4px 0 9px; text-align: center; font-size: 9px; color: #7b98a7; line-height: 1.6; }
+.arena-hint span { color: #c6b687; padding: 0 6px; }
+.ai-thinking-bar { margin: 0 15px; min-height: 24px; color: #81cbbd; }
+.moment-banner { margin: 0 15px; }
+.status-card { background: #b6784a0d; border-left-color: #d6b273; }
+.ai-metrics { border-color: #92bfd427; background: #060f1830; }
+.ai-metrics div + div { border-color: #92bfd427; }
+.ai-metrics strong { color: #b6d5d2; }
+.move-list { scrollbar-color: #324854 transparent; }
+.sound-toggle, .engine-pill { background: #15243366; }
+.result-panel { background: radial-gradient(circle at 50% 0, #28665655, transparent 50%), linear-gradient(145deg, #142b3b, #0c1524); border-color: #9dd3c64d; border-radius: 16px; }
+footer { color: #728b9b; }
+@media (min-width: 1450px) { .game-layout { grid-template-columns: 265px minmax(420px, 860px) 265px; } }
+@media (max-width: 1190px) { .app-shell { width: calc(100% - 32px); } .game-layout { grid-template-columns: 220px minmax(0, 1fr); gap: 16px; } .info-panel { grid-column: 1 / -1; margin-top: 0; } .board-column { grid-column: 2; grid-row: 1; } }
+@media (max-width: 760px) { .app-shell { width: calc(100% - 20px); } .game-layout { display: flex; flex-direction: column; gap: 18px; } .board-column { order: 0; width: 100%; } .control-panel { order: 1; width: 100%; } .info-panel { order: 2; width: 100%; } .hero-copy { padding: 20px 0; } .hero-copy h1 { font-size: 24px; } .hero-copy > p:last-child { font-size: 10px; } .arena-toolbar { padding: 0 4px 12px; flex-wrap: wrap; } .arena-identity strong { font-size: 10px; } .arena-options { gap: 5px; } .arena-options select { max-width: 128px; font-size: 9px; } .player-strip { margin-inline: 5px; } .arena-hint { font-size: 8px; } .board-frame.has-arena { aspect-ratio: 1 / 1.16; height: auto; } }
+@media (prefers-reduced-motion: reduce) { .has-arena * { animation: none !important; } }

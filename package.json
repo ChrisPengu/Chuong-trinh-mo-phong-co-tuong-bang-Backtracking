@@ -6,9 +6,18 @@
   "description": "Game co tuong voi AI backtracking, negamax va alpha-beta pruning",
   "scripts": {
     "start": "node server.mjs",
-    "test": "node --test"
+    "test": "node --test",
+    "build:vendor": "node scripts/build-vendor.mjs",
+    "test:browser": "node scripts/check-arena.mjs"
   },
   "engines": {
     "node": ">=18"
+  },
+  "dependencies": {
+    "three": "^0.186.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "esbuild": "^0.28.2"
   }
 }

@@ -1,5 +1,8 @@
 # Dependencies and generated output
 node_modules/
+.artifacts/
+test-results/
+playwright-report/
 coverage/
 .nyc_output/
 dist/

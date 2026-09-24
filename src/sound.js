@@ -26,6 +26,7 @@ export function createSoundManager(storage) {
   let noiseBuffer = null;
   let output = null;
   let echo = null;
+  let reverb = null;
   let playbackPan = 0;
   const voices = new Set();
   let samplePromise = null;
@@ -61,6 +62,23 @@ export function createSoundManager(storage) {
           echo.connect(feedback); feedback.connect(echo);
           echo.connect(wet); wet.connect(output);
         }
+        // Original stereo impulse: early reflections + a diffuse, dark temple tail.
+        if (typeof context.createConvolver === "function") {
+          reverb = context.createConvolver();
+          const impulse = context.createBuffer(2, Math.ceil(context.sampleRate * 1.35), context.sampleRate);
+          for (let channel = 0; channel < 2; channel++) {
+            const data = impulse.getChannelData(channel);
+            let seed = 971 + channel * 127, smooth = 0;
+            for (let i = 0; i < data.length; i++) {
+              seed = (Math.imul(seed, 1664525) + 1013904223) | 0;
+              smooth = smooth * .68 + (seed / 0x80000000) * .32;
+              data[i] = smooth * Math.pow(1 - i / data.length, 3.5) * .55;
+            }
+          }
+          reverb.buffer = impulse;
+          const space = context.createGain(); space.gain.value = .19;
+          reverb.connect(space); space.connect(output);
+        }
       }
       if (context.state === "suspended") void context.resume().catch(() => {});
       return context;
@@ -92,10 +110,12 @@ export function createSoundManager(storage) {
       stereo.pan.value = playbackPan;
       node.connect(stereo); stereo.connect(output);
       if (ambience && echo) stereo.connect(echo);
+      if (ambience && reverb) stereo.connect(reverb);
       return [stereo];
     }
     node.connect(output);
     if (ambience && echo) node.connect(echo);
+    if (ambience && reverb) node.connect(reverb);
     return [];
   }
 
@@ -137,6 +157,7 @@ export function createSoundManager(storage) {
       volume.connect(stereo);
       stereo.connect(output);
       if (group === "bell" && echo) stereo.connect(echo);
+      if (reverb && (group === "bell" || group === "accent" || group === "capture")) stereo.connect(reverb);
       nodes.push(stereo);
     } else {
       volume.connect(output);
@@ -197,6 +218,39 @@ export function createSoundManager(storage) {
     source.stop(start + duration + 0.02);
   }
 
+  function arcaneImpact(piece, note) {
+    // Distinct attack families, deliberately quiet above the recorded contact layer.
+    const chime = (ratios, duration = .6) => ratios.forEach((ratio, i) => {
+      tone({ at: .025 + i * .032, frequency: note * ratio, endFrequency: note * ratio * .98,
+        duration, gain: .021 / (1 + i * .6) });
+    });
+    switch (piece) {
+      case "C": // cannon: sub-drop, pressure wave and falling debris
+        tone({ frequency: 68, endFrequency: 29, duration: .65, gain: .06 });
+        noise({ at: .06, frequency: 2400, endFrequency: 90, duration: .58, gain: .085, filterType: "lowpass" });
+        [0.13, .21, .34].forEach(at => sample("accent", { at, gain: .065, rate: .58 + at, pan: playbackPan }));
+        break;
+      case "R": // chariot: metal scrape and resonant blade
+        noise({ frequency: 4200, endFrequency: 480, duration: .3, gain: .06 });
+        chime([2, 2.76, 4.07], .55);
+        break;
+      case "H": // horse: staggered hoofbeat, then violet resonance
+        [.03, .12, .2].forEach((at, i) => tone({ at, frequency: 155 - i * 15, endFrequency: 55, duration: .1, gain: .036, type: "triangle" }));
+        chime([1, 1.5, 3], .48);
+        break;
+      case "E": // elephant: low stone body, jade bell
+        tone({ frequency: 82, endFrequency: 48, duration: .48, gain: .05, type: "triangle" });
+        chime([1, 2.76, 5.4], .85);
+        break;
+      case "A": chime([1, 1.25, 2, 3.75], .72); break;
+      case "K":
+        sample("bell", { at: .06, gain: .12, rate: .7, pan: playbackPan });
+        chime([.5, 1, 1.5, 2], 1.1);
+        break;
+      default: chime([1, 2.03], .35);
+    }
+  }
+
   function play(name, { pan = 0, piece = "P" } = {}) {
     if (!enabled || !armed) return;
     playbackPan = Number.isFinite(pan) ? Math.max(-1, Math.min(1, pan)) : 0;
@@ -214,12 +268,15 @@ export function createSoundManager(storage) {
       }
     }
     if (name === "capture") {
+      arcaneImpact(piece, profile.note);
       const intervals = piece === "K" ? [1, 1.5, 2] : piece === "C" ? [0.5, 1] : [1, 1.5];
       intervals.forEach((ratio, i) => tone({ at: 0.04 + i * 0.06, frequency: profile.note * ratio,
         endFrequency: profile.note * ratio * 0.8, duration: 0.3, gain: 0.035, type: "triangle" }));
     }
     switch (name) {
       case "start":
+        [0, .18, .36].forEach((at, i) => tone({ at, frequency: 82 + i * 16, endFrequency: 45, duration: .3, gain: .045, type: "triangle" }));
+        sample("bell", { at: .45, gain: .11, rate: .78 });
         noise({ duration: 0.32, gain: 0.04, frequency: 180, endFrequency: 850, filterType: "lowpass" });
         tone({ frequency: 98, endFrequency: 65, duration: 0.42, gain: 0.065, type: "triangle" });
         tone({ frequency: 392, duration: 0.24, gain: 0.045 });
@@ -265,6 +322,7 @@ export function createSoundManager(storage) {
         sample("bell", { at: 0.44, gain: 0.19, rate: 1.05 });
         break;
       case "win":
+        [196, 294, 392].forEach(frequency => tone({ at: .66, frequency, duration: 1.25, gain: .025, type: "triangle" }));
         tone({ frequency: 98, endFrequency: 65, duration: 0.55, gain: 0.075, type: "triangle" });
         sample("bell", { at: 0.06, gain: 0.24, rate: 0.93 });
         [392, 523, 659, 784, 1046].forEach((frequency, index) => {

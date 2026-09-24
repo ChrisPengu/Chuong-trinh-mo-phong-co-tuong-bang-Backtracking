@@ -4,11 +4,11 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Mô phỏng cờ tướng với AI backtracking, negamax và alpha-beta pruning." />
-    <title>Kỳ Thập - AI Cờ Tướng Backtracking</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Noto+Serif:wght@600;700&display=swap" rel="stylesheet" />
+    <title>Kỳ Thập — Huyền Giới 3D | AI Backtracking</title>
+    <meta name="application-version" content="huyen-gioi-3d-2026-09-24" />
+    <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./arena.css" />
   </head>
   <body>
     <div class="ambient ambient-one"></div>
@@ -17,7 +17,7 @@
       <header class="topbar">
         <a class="brand" href="#" aria-label="Kỳ Thập - về đầu trang">
           <span class="brand-mark">將</span>
-          <span><strong>Kỳ Thập</strong><small>Backtracking Lab</small></span>
+          <span><strong>Kỳ Thập</strong><small>Huyền Giới 3D · Backtracking Lab</small></span>
         </a>
         <div class="topbar-actions">
           <button id="soundToggle" class="sound-toggle" type="button" aria-label="Tắt âm thanh" aria-pressed="true" title="Bật/tắt âm thanh">
@@ -28,9 +28,9 @@
       </header>
 
       <section class="hero-copy">
-        <p class="eyebrow">Bài Tập Lớn Trí tuệ nhân tạo</p>
-        <h1>So tài trên <em>cửu lộ, thập hoành</em></h1>
-        <p>Chơi cờ tướng hai người hoặc thử sức với AI</p>
+        <p class="eyebrow">KỲ THẬP / HUYỀN GIỚI</p>
+        <h1>Một nước cờ. <em>Khai mở thế trận.</em></h1>
+        <p>Đấu trường cờ tướng 3D · Trí tuệ dẫn lối, năng lượng thức tỉnh.</p>
       </section>
 
       <section class="game-layout">
@@ -99,11 +99,18 @@
             </select>
             <div class="volume-heading"><label for="soundVolume">Âm lượng</label><output id="volumeValue" for="soundVolume">70%</output></div>
             <input id="soundVolume" type="range" min="0" max="100" step="1" value="70" aria-label="Âm lượng hiệu ứng" />
-            <p>Chọn Tinh gọn nếu muốn tập trung vào thế cờ.</p>
+            <p>Rực lửa: ánh sáng bloom và nhiều hạt phép thuật. Tinh gọn: ưu tiên tốc độ.</p>
           </section>
         </aside>
 
         <section class="board-column" aria-label="Bàn cờ tướng">
+          <div class="arena-toolbar">
+            <div class="arena-identity"><span class="live-gem" aria-hidden="true">◆</span><span><strong>THIÊN CƠ ĐÀI</strong><small id="rendererStatus" role="status">Đang khởi tạo đấu trường…</small></span></div>
+            <div class="arena-options">
+              <label><span>Hiển thị</span><select id="rendererMode" aria-label="Chế độ dựng hình"><option value="3d">Đấu trường 3D</option><option value="2d">Bàn cờ 2D</option></select></label>
+              <label><span>Góc nhìn</span><select id="cameraView" aria-label="Góc nhìn bàn cờ"><option value="cinematic">Phối cảnh</option><option value="top">Nhìn từ trên</option></select></label>
+            </div>
+          </div>
           <div class="player-strip black-strip" id="blackStrip">
             <span class="avatar black-avatar">將</span>
             <span><small>QUÂN ĐEN</small><strong id="blackName">Kỳ Thủ AI</strong></span>
@@ -117,6 +124,7 @@
 
           <div class="board-frame" id="boardFrame">
             <canvas id="board" width="720" height="800" aria-label="Bàn cờ tướng tương tác" role="img"></canvas>
+            <canvas id="arena3d" hidden aria-label="Đấu trường cờ tướng 3D tương tác" role="img"></canvas>
             <div class="ceremony" id="startCeremony" hidden aria-hidden="true">
               <span class="ceremony-sigil"></span>
               <span class="ceremony-line"></span>
@@ -126,6 +134,8 @@
               <span class="ceremony-line"></span>
             </div>
           </div>
+
+          <p class="arena-hint"><span>✧</span> Chọn quân của bạn, rồi chọn điểm sáng để đi. <span>✧</span></p>
 
           <div class="moment-banner" id="momentBanner" role="status" aria-live="polite" aria-atomic="true">
             <strong id="momentTitle"></strong><span id="momentDetail"></span>
